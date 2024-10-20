@@ -401,33 +401,44 @@ void handleJs(AsyncWebServerRequest *request)
   request->send(file, contentType);
   file.close();
 };
+void handleCaptivePortal(AsyncWebServerRequest *request)
+{
+  Serial.println("Captive portal requested");
+  Serial.println(request->url());
+  File file = SPIFFS.open("/settings.html", "r");
+  if (!file)
+  {
+    request->send(500, "text/plain", "File not found");
+    return;
+  }
+  String html = file.readString();
+  file.close();
+  html = processTemplate(html, devnet, LastGuessAccepted, apiKey, lastSubmittedTime, version);
+  request->send(200, "text/html", html);
+}
+void setupAP()
+{
+  WiFi.softAP(apSSID, apPassword);
+
+  logToWebSocket("Started Access Point");
+  logToWebSocket("connect to " + WiFi.softAPIP().toString());
+  // lightPixels(pixels.Color(102, 0, 255));
+  // Start the web server
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.start(DNS_PORT, "*", apIP);
+  server.on("/generate_204", [](AsyncWebServerRequest *request)
+            { handleCaptivePortal(request); }); // android captive portal redirect
+  server.onNotFound([](AsyncWebServerRequest *request)
+                    { handleCaptivePortal(request); });
+
+  if (!MDNS.begin("erwin"))
+  { // Set the hostname to "esp32.local"
+    logToWebSocket("Error setting up MDNS responder!");
+  }
+}
 
 void setup()
 {
-  esp_ota_mark_app_valid_cancel_rollback();
-
-  Serial.begin(115200);
-
-  logToWebSocket("trying to load preferences");
-  preferences.begin("wifiCreds", false);
-  // Initialize SPIFFS
-  if (!SPIFFS.begin(true))
-  {
-    logToWebSocket("An Error has occurred while mounting SPIFFS");
-    return;
-  }
-
-  const esp_partition_t *partition;
-  esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
-  String ssid = preferences.getString("ssid", "");
-  String password = preferences.getString("password", "");
-  String key = preferences.getString("apiKey", "");
-  Serial.println("TESING");
-  devnet = preferences.getBool("devnet", false);
-
-//
-// if d == "true" then devnet = true else false
-// devnet =
 #ifdef RGBPIN
   setupRGBLED();
 #endif
@@ -435,55 +446,46 @@ void setup()
   setupLED();
 #endif
 
-  // lightPixels(pixels.Color(BRIGHTNESS, 0, 0));
+  // mark as safe to boot
+  esp_ota_mark_app_valid_cancel_rollback();
+  Serial.begin(115200);
+  logToWebSocket("trying to load preferences");
+  preferences.begin("wifiCreds", false);
+  String ssid = preferences.getString("ssid", "");
+  String password = preferences.getString("password", "");
+  String key = preferences.getString("apiKey", "");
+  Serial.println("TESING");
+  devnet = preferences.getBool("devnet", false);
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true))
+  {
+    logToWebSocket("An Error has occurred while mounting SPIFFS");
+    return;
+  }
 
   if (ssid == "" || password == "")
   {
-
     // No credentials, start in Access Point mode
-    WiFi.softAP(apSSID, apPassword);
-    logToWebSocket("Started Access Point");
-    logToWebSocket("connect to " + WiFi.softAPIP().toString());
-    // lightPixels(pixels.Color(102, 0, 255));
-    // Start the web server
-    dnsServer.start(DNS_PORT, "*", apIP);
-    server.on("/generate_204", handleNoContent);       // Android Captive Portal
-    server.on("/hotspot-detect.html", handleSettings); // iOS Captive Portal
-    server.on("/captive.apple.com", handleSettings);   // Another iOS URL
+    setupAP();
   }
-
   else
   {
     // Connect to WiFi
-
-    WiFi.begin(ssid.c_str(), password.c_str());
-
-    if (!MDNS.begin("erwin"))
-    { // Set the hostname to "esp32.local"
-      Serial.println("Error setting up MDNS responder!");
-      while (1)
-      {
-        delay(1000);
-      }
-    }
-    logToWebSocket("mDNS responder started");
-
     logToWebSocket("Connecting to WiFi...");
     logToWebSocket("ssid: " + ssid + "\n");
     logToWebSocket("password: " + password + "\n");
+    WiFi.begin(ssid.c_str(), password.c_str());
+    // if wifi fails to connect, start in AP mode
     if (WiFi.waitForConnectResult() != WL_CONNECTED)
     {
-      logToWebSocket("WiFi Failed! Starting AP mode");
-      WiFi.softAP(apSSID, apPassword);
-#ifdef RGBPIN // Only include if RGBLED build flag is defined
-      lightPixels(pixels.Color(0, 0, 255));
-#endif
+      WiFi.disconnect();
+
+      delay(1000);
+      setupAP();
     }
-    else
-    {
-      logToWebSocket("WiFi Connected!");
-      // You can now use the API key stored
-      logToWebSocket("API Key: " + apiKey);
+    if (!MDNS.begin("erwin"))
+    { // Set the hostname to "esp32.local"
+      Serial.println("Error setting up MDNS responder!");
     }
   }
   server.on("/", handleRoot);
@@ -759,16 +761,11 @@ void loop()
     }
     if (millis() - lastRequestTime > sleepTime)
     {
-      Serial.println("API Key: " + apiKey);
       // if apikey is not set then return
       if (apiKey == "" || opener_running == false)
       {
-        // logToWebSocket("API Key not set, Opener shutdown Please set the API Key");
-        Serial.println("API Key not set, Opener shutdown Please set the API Key");
         opener_running = false;
       }
-      Serial.println("im in the loop");
-      Serial.println("opener running:" + String(opener_running));
       if (opener_running == true)
       {
         logToWebSocket("⚙️ Generating guesses...");
@@ -822,5 +819,4 @@ void loop()
 
     dnsServer.processNextRequest();
   };
-  (10);
 }
