@@ -30,7 +30,7 @@ To install the project, follow these steps:
 4. Reboot the board.
 5. Connect to the board's Wi-Fi access point:
    - **SSID**: Erwin
-   - **Password**: Erwin
+   - **Password**: Erwin123
 6. On connection, it should take you to the captive portal where you can configure the device. If the captive portal does not open, navigate to `erwin.local` or `192.168.4.1` in your browser.
 7. Configure the device with your Wi-Fi credentials.
 8. The device should now connect to your Wi-Fi network. You can now access the device at the IP address or [erwin.local](http://erwin.local) it received from your router.
