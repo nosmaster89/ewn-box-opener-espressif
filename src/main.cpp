@@ -36,8 +36,8 @@
 #ifdef RGBpin
 int rgbpin = RGBpin;
 #endif
-const char *apSSID = "ESP32_Setup";
-const char *apPassword = "123456789";
+const char *apSSID = "Erwin";
+const char *apPassword = "Erwin";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 0;
 const int daylightOffset_sec = 3600;
