@@ -1,0 +1,42 @@
+<!-- generate a styled page stating that the device is rebooting and after 10 seconds try to reconnect to the root page  -->
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Rebooting</title>
+		<link
+			rel="icon"
+			type="image/x-icon"
+			href="/favicon.ico" />
+		<link
+			rel="stylesheet"
+			href="style.css" />
+	</head>
+	<body>
+		<div id="header"></div>
+
+		<h1>Rebooting</h1>
+		<p>The device is rebooting. Please wait...</p>
+
+		<script>
+			// Load the header.html file and inject it into the #header div
+			document.addEventListener('DOMContentLoaded', function () {
+				fetch('/header')
+					.then(response => response.text())
+					.then(data => {
+						document.getElementById('header').innerHTML = data;
+					})
+					.catch(error => console.error('Error loading header:', error));
+			});
+
+			// Redirect to the root page after 10 seconds
+			setTimeout(() => {
+				window.location.href = '/';
+			}, 10000);
+		</script>
+	</body>
+	<script src="header.js"></script>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Box Opener Settings</title>
+		<link
+			rel="icon"
+			type="image/x-icon"
+			href="/favicon.ico" />
+		<link
+			rel="stylesheet"
+			href="/style.css" />
+	</head>
+	<body>
+		<div id="header"></div>
+
+		<div class="container">
+			<h1>Box Opener Settings</h1>
+			<!-- create a sub heading that checks the value of opener_running and displays a green message if the opener is running or a red message if it is not  -->
+			{{OPENER_STATUS}}
+
+			<img
+				src="/image"
+				width="100%"
+				alt="ESP32 Image" />
+
+			<p>
+				WiFi SSID and Password must be provided to connect to a network. API Key is
+				optional and can be obtained from the Box Opener API. Select Devnet to
+				enable the DevNet mode. Board settings can be changed here(use with
+				caution).
+			</p>
+
+			<form
+				id="settingsForm"
+				action="/save"
+				method="POST">
+				<!-- WiFi Settings -->
+				<div class="settings-box">
+					<h2>WiFi Settings</h2>
+					<label for="ssid">WiFi SSID:</label>
+					<input
+						type="text"
+						id="ssid"
+						name="ssid"
+						value="{{ssid}}"
+						required /><br />
+
+					<label for="password">WiFi Password:</label>
+					<input
+						type="password"
+						id="password"
+						name="password"
+						value="{{password}}"
+						type="password"
+						required /><br />
+				</div>
+
+				<!-- API Key and DevNet Switch -->
+				<div class="settings-box">
+					<h2>API Settings</h2>
+					<label for="apiKey">API Key:</label>
+					<input
+						type="text"
+						id="apiKey"
+						name="apiKey"
+						value="{{apiKey}}" /><br />
+
+					<label for="devnet">DevNet:</label>
+					<input
+						type="checkbox"
+						id="devnet"
+						name="devnet"
+						checked="{{devnet}}" /><br />
+				</div>
+
+				<!-- RGB Pin Settings -->
+				<div class="settings-box">
+					<h2>Board Settings</h2>
+					<label for="rgbpin">RGB Pin:</label>
+					<input
+						type="number"
+						id="rgbpin"
+						name="rgbpin"
+						value="{{rgbpin}}" /><br />
+				</div>
+
+				<input
+					type="submit"
+					value="Submit" />
+			</form>
+
+			<!-- Factory Reset Button -->
+			<button
+				class="reset-btn"
+				onclick="factoryReset()">
+				Factory Reset
+			</button>
+
+			<!-- View Stats Button -->
+			<form
+				action="/stats"
+				method="GET">
+				<button
+					class="view-stats-btn"
+					type="submit">
+					View Stats
+				</button>
+			</form>
+		</div>
+
+		<script>
+			function factoryReset() {
+				document.querySelector('#ssid').value = '';
+				document.querySelector('#password').value = '';
+				document.querySelector('#apiKey').value = '';
+				document.querySelector('#rgbpin').value = '';
+				document.getElementById('settingsForm').submit();
+			}
+		</script>
+		<script>
+			// Load the header.html file and inject it into the #header div
+			document.addEventListener('DOMContentLoaded', function () {
+				fetch('/header')
+					.then(response => response.text())
+					.then(data => {
+						document.getElementById('header').innerHTML = data;
+					})
+					.catch(error => console.error('Error loading header:', error));
+			});
+		</script>
+				<script src="header.js"></script>
+
+	</body>
+</html>

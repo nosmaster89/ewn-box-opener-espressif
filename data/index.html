@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Box Opener Stats</title>
+
+		<link
+			rel="icon"
+			type="image/x-icon"
+			href="/favicon.ico" />
+		<link
+			rel="stylesheet"
+			href="/style.css" />
+	</head>
+	<body>
+		<div id="header"></div>
+		<div class="container">
+			<h1>Box Opener Stats</h1>
+			<img
+				src="/image"
+				alt="ESP32 Image"
+				width="100%" />
+
+			<!-- These elements will be updated dynamically via WebSocket -->
+			<p>DevNet: <span id="devnet">Loading...</span></p>
+			<p>IP: <span id="ip">Loading...</span></p>
+			<p>Uptime: <span id="uptime">Loading...</span> hours</p>
+			<p>Last Request Time: <span id="lastRequestTime">Loading...</span></p>
+			<p>Last Request Status: <span id="lastRequestStatus">Loading...</span></p>
+			<p>API Key: <span id="apiKey">Loading...</span></p>
+			<br /><br />
+
+			<p>Version: <span id="version">Loading...</span></p>
+		</div>
+
+		<script>
+			// Function to convert UTC timestamp to local time
+			function convertUTCToLocal(utcTimestamp) {
+				const date = new Date(utcTimestamp * 1000); // Convert from seconds to milliseconds
+				return date.toLocaleString(); // Convert to local string
+			}
+
+			// WebSocket initialization
+			const socket = new WebSocket('ws://' + window.location.hostname + '/ws');
+
+			socket.onopen = function () {
+				console.log('WebSocket connection established');
+			};
+
+			// Handle incoming messages
+			socket.onmessage = function (event) {
+				const data = JSON.parse(event.data); // Parse the incoming data as JSON
+
+				// Update the HTML elements dynamically
+				document.getElementById('devnet').innerText = data.DevNet
+					? 'Enabled'
+					: 'Disabled';
+				document.getElementById('ip').innerText = data.IP;
+				document.getElementById('uptime').innerText = data.Uptime;
+				document.getElementById('lastRequestTime').innerText = convertUTCToLocal(
+					data.LastRequestTime
+				);
+				document.getElementById('lastRequestStatus').innerText =
+					data.LastRequestStatus;
+				document.getElementById('apiKey').innerText = data.APIKey;
+				document.getElementById('version').innerText = data.Version;
+			};
+
+			socket.onerror = function (error) {
+				console.log('WebSocket Error: ' + error);
+			};
+
+			socket.onclose = function () {
+				console.log('WebSocket connection closed');
+			};
+		</script>
+		<script>
+			// Load the header.html file and inject it into the #header div
+			document.addEventListener('DOMContentLoaded', function () {
+				fetch('/header')
+					.then(response => response.text())
+					.then(data => {
+						document.getElementById('header').innerHTML = data;
+					})
+					.catch(error => console.error('Error loading header:', error));
+			});
+		</script>
+	</body>
+	<script src="header.js"></script>
+</html>
