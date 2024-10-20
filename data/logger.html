@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Serial Logger</title>
+		<link
+			rel="icon"
+			type="image/x-icon"
+			href="/favicon.ico" />
+		<link
+			rel="stylesheet"
+			href="style.css" />
+	</head>
+
+	<body>
+		<div id="header"></div>
+
+		<h1>Serial Logger</h1>
+		<div id="log"></div>
+
+		<script>
+			// Replace <ESP32_IP_ADDRESS> with your ESP32's IP address
+			const ws = new WebSocket('ws://' + window.location.hostname + '/ws');
+
+			ws.onopen = function () {
+				console.log('WebSocket is open now.');
+			};
+
+			ws.onmessage = function (event) {
+				console.log(event.data);
+				const log = document.getElementById('log');
+				log.innerHTML += event.data + '\n'; // Append new data
+				log.scrollTop = log.scrollHeight; // Auto-scroll to the bottom
+			};
+
+			ws.onclose = function () {
+				console.log('WebSocket connection closed.');
+			};
+
+			ws.onerror = function (error) {
+				console.error('WebSocket error: ', error);
+			};
+		</script>
+		<script>
+			// Load the header.html file and inject it into the #header div
+			document.addEventListener('DOMContentLoaded', function () {
+				fetch('/header')
+					.then(response => response.text())
+					.then(data => {
+						document.getElementById('header').innerHTML = data;
+					})
+					.catch(error => console.error('Error loading header:', error));
+			});
+		</script>
+				<script src="header.js"></script>
+
+	</body>
+</html>
