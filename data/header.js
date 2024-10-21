@@ -2,6 +2,45 @@ document.addEventListener('DOMContentLoaded', function () {
     fetch('/header')
         .then(response => response.text())
         .then(data => {
+            let socket;
+            // find any existing websocket
+
+
+
+            if (typeof socket !== 'undefined' && socket.readyState === WebSocket.OPEN) {
+                console.log("Using existing WebSocket in injected.js");
+
+                socket.addEventListener('message', function (event) {
+                    console.log("Message received in injected.js:", typeof event.data);
+                    // convert the string to a JSON object
+                    const e = JSON.parse(event.data);
+
+
+
+                    const currentTime = e["current_time"];
+                    if (currentTime) {
+                        console.log("Updating time in injected.js:", currentTime);
+                        // currenttime is a timestamp in seconds make it localtime 
+                        const date = new Date(currentTime * 1000); // Convert from seconds to milliseconds
+                        const ct = date.toLocaleString(); // Convert to local string
+                        document.getElementById('time').innerHTML = ct;
+
+                    }
+                    else {
+                        console.log("No current_time in message");
+                    }
+                });
+            }
+            else {
+                console.log("Creating new WebSocket in injected.js");
+                socket = new WebSocket('ws://' + window.location.hostname + '/ws');
+
+                socket.addEventListener('message', function (event) {
+                    console.log("Message received in injected.js:", event.data);
+                });
+            }
+
+
             document.getElementById('header').innerHTML = data;
 
             // Now that the header is loaded, we can safely call updateWiFiStatus
@@ -13,9 +52,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             var wifiSignal = parseInt(rssi.innerHTML); // RSSI value dynamically passed in
             updateWiFiStatus(wifiSignal);
+            const time = document.getElementById(`time`)
+            if (time == null) {
+                console.error('Time element not found');
+                return;
+            }
+            var timestamp = parseInt(time.innerHTML); // UTC timestamp dynamically passed in
+            time.innerHTML = updateTime(timestamp);
         })
         .catch(error => console.error('Error loading header:', error));
 });
+function updateTime(time) {
+    // time is a utc timestamp convert it to local time from the browser
+    const date = new Date(time * 1000); // Convert from seconds to milliseconds
+    return date.toLocaleString(); // Convert to local string
+}
 
 function updateWiFiStatus(rssi) {
     console.log('Updating WiFi status...');

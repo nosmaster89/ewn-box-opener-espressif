@@ -47,13 +47,24 @@
 			const socket = new WebSocket('ws://' + window.location.hostname + '/ws');
 
 			socket.onopen = function () {
-				console.log('WebSocket connection established');
+				//console.log('WebSocket connection established');
 			};
 
 			// Handle incoming messages
-			socket.onmessage = function (event) {
-				const data = JSON.parse(event.data); // Parse the incoming data as JSON
-
+			socket.addEventListener('message', function (event) {
+				//console.log('Message from server in index.html:', event.data);
+				var data;
+				if (typeof event.data === 'string') {
+					//console.log('Received data is  a string');
+					try {
+						data = JSON.parse(event.data);
+					} catch (e) {
+						//console.error('Error parsing JSON:', e);
+						return;
+					}
+				} else {
+					data = event.data; // Parse the incoming data as JSON
+				}
 				// Update the HTML elements dynamically
 				document.getElementById('devnet').innerText = data.DevNet
 					? 'Enabled'
@@ -67,14 +78,14 @@
 					data.LastRequestStatus;
 				document.getElementById('apiKey').innerText = data.APIKey;
 				document.getElementById('version').innerText = data.Version;
-			};
+			});
 
 			socket.onerror = function (error) {
-				console.log('WebSocket Error: ' + error);
+				//console.log('WebSocket Error: ' + error);
 			};
 
 			socket.onclose = function () {
-				console.log('WebSocket connection closed');
+				//console.log('WebSocket connection closed');
 			};
 		</script>
 		<script>
