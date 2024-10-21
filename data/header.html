@@ -8,6 +8,11 @@
 			<li><a href="/reboot">Reboot</a></li>
 		</ul>
 	</nav>
+	<div
+		class="current-time"
+		id="time">
+		{{current_time}}
+	</div>
 	<script>
 		console.log('Header loaded successfully.');
 	</script>
@@ -69,6 +74,12 @@
 
 	.header nav ul li a:hover {
 		text-decoration: underline;
+	}
+
+	/* Current time styling */
+	.current-time {
+		color: white;
+		font-weight: bold;
 	}
 
 	/* WiFi status styling */
