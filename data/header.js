@@ -70,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             var timestamp = parseInt(time.innerHTML); // UTC timestamp dynamically passed in
             time.innerHTML = updateTime(timestamp);
-            const time = document.getElementById(`time`)
             if (time == null) {
                 console.error('Time element not found');
                 return;
