@@ -810,9 +810,9 @@ void loop()
         {
           sleepTime = 10000;
         }
-        if (sleepTime > 71000) // if sleep for more than a minute limit it to one minute
+        if (sleepTime > 61000) // if sleep for more than a minute limit it to one minute
         {
-          sleepTime = 71000;
+          sleepTime = 61000;
         }
 
         logToWebSocket("waiting " + String(sleepTime / 1000) + "s for next batch...\n");
