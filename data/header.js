@@ -10,9 +10,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof socket !== 'undefined' && socket.readyState === WebSocket.OPEN) {
                 console.log("Using existing WebSocket in injected.js");
 
-                socket.addEventListener('message', function (event) {
-                    console.log("Message received in injected.js:", typeof event.data);
-                    // convert the string to a JSON object
+
+            }
+            else {
+                console.log("Creating new WebSocket in injected.js");
+                socket = new WebSocket('ws://' + window.location.hostname + '/ws');
+
+
+            }
+            socket.addEventListener('message', function (event) {
+                console.log("Message received in injected.js:", typeof event.data);
+                // convert the string to a JSON object
+                try {
+
                     const e = JSON.parse(event.data);
 
 
@@ -24,22 +34,23 @@ document.addEventListener('DOMContentLoaded', function () {
                         const date = new Date(currentTime * 1000); // Convert from seconds to milliseconds
                         const ct = date.toLocaleString(); // Convert to local string
                         document.getElementById('time').innerHTML = ct;
+                        const rssi = document.getElementById(`rssi`)
+                        if (rssi == null) {
+                            console.error('RSSI element not found');
+                            return;
+                        }
+                        var wifiSignal = parseInt(rssi.innerHTML); // RSSI value dynamically passed in
+                        updateWiFiStatus(wifiSignal);
 
                     }
                     else {
                         console.log("No current_time in message");
                     }
-                });
-            }
-            else {
-                console.log("Creating new WebSocket in injected.js");
-                socket = new WebSocket('ws://' + window.location.hostname + '/ws');
-
-                socket.addEventListener('message', function (event) {
-                    console.log("Message received in injected.js:", event.data);
-                });
-            }
-
+                }
+                catch (e) {
+                    console.log("Error parsing JSON in injected.js:", e);
+                }
+            });
 
             document.getElementById('header').innerHTML = data;
 
@@ -59,9 +70,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             var timestamp = parseInt(time.innerHTML); // UTC timestamp dynamically passed in
             time.innerHTML = updateTime(timestamp);
+            const time = document.getElementById(`time`)
+            if (time == null) {
+                console.error('Time element not found');
+                return;
+            }
+            var timestamp = parseInt(time.innerHTML); // UTC timestamp dynamically passed in
+            time.innerHTML = updateTime(timestamp);
         })
         .catch(error => console.error('Error loading header:', error));
 });
+function updateTime(time) {
+    // time is a utc timestamp convert it to local time from the browser
+    const date = new Date(time * 1000); // Convert from seconds to milliseconds
+    return date.toLocaleString(); // Convert to local string
+}
 function updateTime(time) {
     // time is a utc timestamp convert it to local time from the browser
     const date = new Date(time * 1000); // Convert from seconds to milliseconds
