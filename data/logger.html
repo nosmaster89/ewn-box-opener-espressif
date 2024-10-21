@@ -29,12 +29,18 @@
 				console.log('WebSocket is open now.');
 			};
 
-			ws.onmessage = function (event) {
-				console.log(event.data);
+			ws.addEventListener('message', function (event) {
 				const log = document.getElementById('log');
+				var jlog;
+				try {
+					jlog = JSON.parse(event.data);
+					return;
+				} catch (e) {
+					console.log('Error parsing JSON:', e);
+				}
 				log.innerHTML += event.data + '\n'; // Append new data
 				log.scrollTop = log.scrollHeight; // Auto-scroll to the bottom
-			};
+			});
 
 			ws.onclose = function () {
 				console.log('WebSocket connection closed.');
@@ -55,7 +61,6 @@
 					.catch(error => console.error('Error loading header:', error));
 			});
 		</script>
-				<script src="header.js"></script>
-
+		<script src="header.js"></script>
 	</body>
 </html>

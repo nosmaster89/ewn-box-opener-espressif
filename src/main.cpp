@@ -40,7 +40,7 @@ const char *apSSID = "Erwin";
 const char *apPassword = "Erwin123";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 0;
-const int daylightOffset_sec = 3600;
+const int daylightOffset_sec = 0;
 long lastUpdatCheck = 0;
 const char *version = "0.0.2";
 // every 5min
@@ -65,11 +65,11 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 {
   if (type == WS_EVT_CONNECT)
   {
-    logToWebSocket("Client connected");
+    // logToWebSocket("Client connected");
   }
   else if (type == WS_EVT_DISCONNECT)
   {
-    logToWebSocket("Client disconnected");
+    // logToWebSocket("Client disconnected");
   }
   else if (type == WS_EVT_DATA)
   {
@@ -77,15 +77,15 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     if (info->final && info->index == 0 && info->len == len)
     {
       // the whole message is in a single frame and we got all of it's data
-      logToWebSocket("Received message with length " + String(len) + "\n");
+      // logToWebSocket("Received message with length " + String(len) + "\n");
       if (info->opcode == WS_TEXT)
       {
         data[len] = 0;
-        logToWebSocket("Received text: " + String((char *)data) + "\n");
+        // logToWebSocket("Received text: " + String((char *)data) + "\n");
       }
       else
       {
-        logToWebSocket("Received binary data\n");
+        // logToWebSocket("Received binary data\n");
       }
     }
     // Handle incoming messages if needed
@@ -108,7 +108,11 @@ String processHeader(String header)
 {
   int rssi = WiFi.RSSI();
   header.replace("{{rssi}}", String(rssi));
-
+  struct tm timeinfo;
+  getLocalTime(&timeinfo);
+  // convert time to timestamp
+  time_t timestamp = mktime(&timeinfo);
+  header.replace("{{current_time}}", String(timestamp).c_str());
   return header;
 }
 String processTemplate(String html, bool devnet, String LastGuess, String apiKey, tm lastTime, String version)
@@ -134,6 +138,7 @@ String processTemplate(String html, bool devnet, String LastGuess, String apiKey
   int32_t rssi = WiFi.RSSI();
   logToWebSocket("RSSI: " + String(rssi));
   html.replace("{{rssi}}", String(rssi));
+
   Serial.println("opener running:" + opener_running);
   html.replace("{{OPENER_STATUS}}", opener_running ? "<h2 class='bg-success'>Opener is running</h2>" : "<h2 class='bg-danger'>Opener is stopped</h2>");
   ;
@@ -321,6 +326,13 @@ void sendStatsToClients()
   jsonDoc["LastRequestStatus"] = LastGuessAccepted;
   jsonDoc["APIKey"] = apiKey;
   jsonDoc["Version"] = version;
+  jsonDoc["RSSI"] = WiFi.RSSI();
+  tm timeinfo;
+  // logToWebSocket("    local time");
+  if (getLocalTime(&timeinfo))
+  {
+    jsonDoc["current_time"] = mktime(&timeinfo);
+  }
 
   // Serialize the JSON data to a string
   String jsonString;
@@ -401,61 +413,15 @@ void handleJs(AsyncWebServerRequest *request)
   request->send(file, contentType);
   file.close();
 };
-void handleCaptivePortal(AsyncWebServerRequest *request)
-{
-  Serial.println("Captive portal requested");
-  Serial.println(request->url());
-  File file = SPIFFS.open("/settings.html", "r");
-  if (!file)
-  {
-    request->send(500, "text/plain", "File not found");
-    return;
-  }
-  String html = file.readString();
-  file.close();
-  html = processTemplate(html, devnet, LastGuessAccepted, apiKey, lastSubmittedTime, version);
-  request->send(200, "text/html", html);
-}
-void setupAP()
-{
-  WiFi.softAP(apSSID, apPassword);
-
-  logToWebSocket("Started Access Point");
-  logToWebSocket("connect to " + WiFi.softAPIP().toString());
-  // lightPixels(pixels.Color(102, 0, 255));
-  // Start the web server
-  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-  dnsServer.start(DNS_PORT, "*", apIP);
-  server.on("/generate_204", [](AsyncWebServerRequest *request)
-            { handleCaptivePortal(request); }); // android captive portal redirect
-  server.onNotFound([](AsyncWebServerRequest *request)
-                    { handleCaptivePortal(request); });
-
-  if (!MDNS.begin("erwin"))
-  { // Set the hostname to "esp32.local"
-    logToWebSocket("Error setting up MDNS responder!");
-  }
-}
 
 void setup()
 {
-#ifdef RGBPIN
-  setupRGBLED();
-#endif
-#ifdef LEDPIN
-  setupLED();
-#endif
-
-  // mark as safe to boot
   esp_ota_mark_app_valid_cancel_rollback();
+
   Serial.begin(115200);
+
   logToWebSocket("trying to load preferences");
   preferences.begin("wifiCreds", false);
-  String ssid = preferences.getString("ssid", "");
-  String password = preferences.getString("password", "");
-  String key = preferences.getString("apiKey", "");
-  Serial.println("TESING");
-  devnet = preferences.getBool("devnet", false);
   // Initialize SPIFFS
   if (!SPIFFS.begin(true))
   {
@@ -463,31 +429,76 @@ void setup()
     return;
   }
 
+  const esp_partition_t *partition;
+  esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
+  String ssid = preferences.getString("ssid", "");
+  String password = preferences.getString("password", "");
+  String key = preferences.getString("apiKey", "");
+  Serial.println("TESING");
+  devnet = preferences.getBool("devnet", false);
+
+//
+// if d == "true" then devnet = true else false
+// devnet =
+#ifdef RGBPIN
+  setupRGBLED();
+#endif
+#ifdef LEDPIN
+  setupLED();
+#endif
+
+  // lightPixels(pixels.Color(BRIGHTNESS, 0, 0));
+
   if (ssid == "" || password == "")
   {
+
     // No credentials, start in Access Point mode
-    setupAP();
+    WiFi.softAP(apSSID, apPassword);
+    logToWebSocket("Started Access Point");
+    logToWebSocket("connect to " + WiFi.softAPIP().toString());
+    // lightPixels(pixels.Color(102, 0, 255));
+    // Start the web server
+    dnsServer.start(DNS_PORT, "*", apIP);
+    server.on("/generate_204", handleNoContent);       // Android Captive Portal
+    server.on("/hotspot-detect.html", handleSettings); // iOS Captive Portal
+    server.on("/captive.apple.com", handleSettings);   // Another iOS URL
   }
+
   else
   {
     // Connect to WiFi
-    logToWebSocket("Connecting to WiFi...");
-    logToWebSocket("ssid: " + ssid + "\n");
-    logToWebSocket("password: " + password + "\n");
-    WiFi.begin(ssid.c_str(), password.c_str());
-    // if wifi fails to connect, start in AP mode
-    if (WiFi.waitForConnectResult() != WL_CONNECTED)
-    {
-      WiFi.disconnect();
 
-      delay(1000);
-      setupAP();
-    }
+    WiFi.begin(ssid.c_str(), password.c_str());
+
     if (!MDNS.begin("erwin"))
     { // Set the hostname to "esp32.local"
       Serial.println("Error setting up MDNS responder!");
+      while (1)
+      {
+        delay(1000);
+      }
+    }
+    logToWebSocket("mDNS responder started");
+
+    logToWebSocket("Connecting to WiFi...");
+    logToWebSocket("ssid: " + ssid + "\n");
+    logToWebSocket("password: " + password + "\n");
+    if (WiFi.waitForConnectResult() != WL_CONNECTED)
+    {
+      logToWebSocket("WiFi Failed! Starting AP mode");
+      WiFi.softAP(apSSID, apPassword);
+#ifdef RGBPIN // Only include if RGBLED build flag is defined
+      lightPixels(pixels.Color(0, 0, 255));
+#endif
+    }
+    else
+    {
+      logToWebSocket("WiFi Connected!");
+      // You can now use the API key stored
     }
   }
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
   server.on("/", handleRoot);
   server.on("/save", handleSave);
   server.on("/stats", handleStats);
@@ -573,10 +584,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     jsonDoc.add(mnemonics[i]);
   }
 
-  logToWebSocket("🔑️ Generated %u guesses" + String(numGuesses) + "\n");
   logToWebSocket("➡️ Submitting to oracle\n");
-  String apistring = "🔑️ API Key: " + String(apiKey) + "\n";
-  logToWebSocket(apistring);
 
   logToWebSocket("webserver IP: " + WiFi.localIP().toString() + "\n");
 
@@ -609,12 +617,20 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       triggerError();
       LastGuessAccepted = response.c_str();
     }
-    else // other errors
+    else if (httpResponseCode == 500 || httpResponseCode == 502)
     {
-      logToWebSocket("❌ Guesses rejected :" + String(response.c_str()) + "\n");
+      logToWebSocket(String("❌ Guesses rejected Server Error:") + String(httpResponseCode) + "\n");
       ret = true;
       triggerError();
+      LastGuessAccepted = "Server Error";
+    }
+    else
+    {
+      logToWebSocket("❌ Guesses rejected :" + String(response.c_str()) + "\n");
       LastGuessAccepted = response.c_str();
+      triggerError();
+
+      ret = true;
     }
   }
   else // even more other errors :V maybe do a reconnect?
@@ -622,7 +638,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     logToWebSocket("❌ Error in HTTP request: " + http.errorToString(httpResponseCode) + "\n");
     ret = true;
     triggerError();
-    LastGuessAccepted = http.errorToString(httpResponseCode).c_str();
+    // if 502 or 500 then report server error
   }
 
   http.end();
@@ -745,12 +761,12 @@ void loop()
                 }
                 else
                 {
-                  logToWebSocket("Failed to set the next boot partition!");
+                  // logToWebSocket("Failed to set the next boot partition!");
                 }
               }
               else
               {
-                logToWebSocket("No valid OTA update partition found!");
+                // logToWebSocket("No valid OTA update partition found!");
               }
 
               break;
@@ -761,11 +777,16 @@ void loop()
     }
     if (millis() - lastRequestTime > sleepTime)
     {
+      Serial.println("API Key: " + apiKey);
       // if apikey is not set then return
       if (apiKey == "" || opener_running == false)
       {
+        // logToWebSocket("API Key not set, Opener shutdown Please set the API Key");
+        Serial.println("API Key not set, Opener shutdown Please set the API Key");
         opener_running = false;
       }
+      Serial.println("im in the loop");
+      Serial.println("opener running:" + String(opener_running));
       if (opener_running == true)
       {
         logToWebSocket("⚙️ Generating guesses...");
@@ -789,9 +810,9 @@ void loop()
         {
           sleepTime = 10000;
         }
-        if (sleepTime > 71000) // if sleep for more than a minute limit it to one minute
+        if (sleepTime > 61000) // if sleep for more than a minute limit it to one minute
         {
-          sleepTime = 71000;
+          sleepTime = 61000;
         }
 
         logToWebSocket("waiting " + String(sleepTime / 1000) + "s for next batch...\n");
@@ -805,7 +826,7 @@ void loop()
         else
         {
           lastSubmittedTime = timeinfo;
-          logToWebSocket("time: " + String(lastRequestTime));
+          // logToWebSocket("time: " + String(lastRequestTime));
           // log the new time
         }
         lastRequestTime = millis();
@@ -819,4 +840,5 @@ void loop()
 
     dnsServer.processNextRequest();
   };
+  (10);
 }

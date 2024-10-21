@@ -70,9 +70,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             var timestamp = parseInt(time.innerHTML); // UTC timestamp dynamically passed in
             time.innerHTML = updateTime(timestamp);
+            const time = document.getElementById(`time`)
+            if (time == null) {
+                console.error('Time element not found');
+                return;
+            }
+            var timestamp = parseInt(time.innerHTML); // UTC timestamp dynamically passed in
+            time.innerHTML = updateTime(timestamp);
         })
         .catch(error => console.error('Error loading header:', error));
 });
+function updateTime(time) {
+    // time is a utc timestamp convert it to local time from the browser
+    const date = new Date(time * 1000); // Convert from seconds to milliseconds
+    return date.toLocaleString(); // Convert to local string
+}
 function updateTime(time) {
     // time is a utc timestamp convert it to local time from the browser
     const date = new Date(time * 1000); // Convert from seconds to milliseconds
