@@ -26,11 +26,18 @@
 
 			<!-- These elements will be updated dynamically via WebSocket -->
 			<p>DevNet: <span id="devnet">Loading...</span></p>
+			<!-- add in success attempts and failed attempts -->
+			<p>Success Attempts: <span id="successAttempts">Loading...</span></p>
+			<p>Failed Attempts: <span id="failedAttempts">Loading...</span></p>
 			<p>IP: <span id="ip">Loading...</span></p>
 			<p>Uptime: <span id="uptime">Loading...</span> hours</p>
 			<p>Last Request Time: <span id="lastRequestTime">Loading...</span></p>
+			<p>Sleep Time: <span id="sleepTime">Loading...</span></p>
 			<p>Last Request Status: <span id="lastRequestStatus">Loading...</span></p>
-			<p>API Key: <span id="apiKey">Loading...</span></p>
+			<details>
+				<summary>Click to view your API Key</summary>
+				<p>API Key: <span id="apiKey">Loading...</span></p>
+			</details>
 			<br /><br />
 
 			<p>Version: <span id="version">Loading...</span></p>
@@ -74,10 +81,14 @@
 				document.getElementById('lastRequestTime').innerText = convertUTCToLocal(
 					data.LastRequestTime
 				);
+				document.getElementById('successAttempts').innerText =
+					data.sucessfulGuesses;
+				document.getElementById('failedAttempts').innerText = data.failedGuesses;
 				document.getElementById('lastRequestStatus').innerText =
 					data.LastRequestStatus;
 				document.getElementById('apiKey').innerText = data.APIKey;
 				document.getElementById('version').innerText = data.Version;
+				document.getElementById('sleepTime').innerText = data.waitTime / 1000;
 			});
 
 			socket.onerror = function (error) {

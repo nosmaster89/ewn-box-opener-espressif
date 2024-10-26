@@ -27,92 +27,73 @@
 #include "ESPAsyncWebServer.h"
 #include "esp_ota_ops.h"
 #include <ESPmDNS.h>
+#include <TFT_eSPI.h>
+// board modules include
+#include <param.h>
 #include <rgbled.h>
 #include <led.h>
+#include <button.h>
+#include <websockets.h>
+#include <display.h>
+#ifdef DISPLAY
+#include <kitty.h>
 
+#endif
 #define NUMPIXELS 1
 #define DELAYVAL 500
 #define BRIGHTNESS 120
 #ifdef RGBpin
 int rgbpin = RGBpin;
 #endif
-const char *apSSID = "Erwin";
-const char *apPassword = "Erwin123";
-const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 0;
-const int daylightOffset_sec = 0;
-long lastUpdatCheck = 0;
-const char *version = "0.0.2";
-// every 5min
-const long updateCheckInterval = 300000;
-// ledpin
-bool devnet = false;
-bool opener_running = true;
-//=====wifi setup
+#ifdef BUTTONPIN
+int buttonPin = BUTTONPIN;
+bool buttonState = false;
+#endif
+
 Preferences preferences;
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-// Handle WebSocket events
-void logToWebSocket(const String &logLine)
-{
-  // Send the log data to all connected WebSocket clients
-  ws.textAll(logLine);
-
-  // Optionally, also print to the Serial Monitor
-  Serial.print(logLine);
-}
-void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
-{
-  if (type == WS_EVT_CONNECT)
-  {
-    // logToWebSocket("Client connected");
-  }
-  else if (type == WS_EVT_DISCONNECT)
-  {
-    // logToWebSocket("Client disconnected");
-  }
-  else if (type == WS_EVT_DATA)
-  {
-    AwsFrameInfo *info = (AwsFrameInfo *)arg;
-    if (info->final && info->index == 0 && info->len == len)
-    {
-      // the whole message is in a single frame and we got all of it's data
-      // logToWebSocket("Received message with length " + String(len) + "\n");
-      if (info->opcode == WS_TEXT)
-      {
-        data[len] = 0;
-        // logToWebSocket("Received text: " + String((char *)data) + "\n");
-      }
-      else
-      {
-        // logToWebSocket("Received binary data\n");
-      }
-    }
-    // Handle incoming messages if needed
-  }
-}
-tm lastSubmittedTime;
-unsigned long lastRequestTime;
-const char *apiUrl = "https://api.erwin.lol/";        // mainnet
-const char *devUrl = "https://devnet-api.erwin.lol/"; // devnet
-String apiKey = "";                                   // <---------------------- SET THIS !!!
 DNSServer dnsServer;
-IPAddress apIP(192, 168, 4, 1);
-const byte DNS_PORT = 53;
 Adafruit_NeoPixel pixels;
 const int numGuesses = 50;
-String mnemonics[numGuesses]; // bip39 mnemonic table
-int sleepTime = 10000;        // default sleep time in ms
-String LastGuessAccepted = "undefined";
+String mnemonics[numGuesses];
+
+// board base function
+void triggerSucess()
+{
+#ifdef LEDPIN
+  blinkLED();
+#endif
+#ifdef RGBPIN
+  lightPixels(pixels.Color(0, BRIGHTNESS, 0));
+  delay(50);
+  lightPixels(pixels.Color(0, 0, 0));
+#endif
+}
+void triggerError()
+{
+#ifdef RGBPIN
+  lightPixels(pixels.Color(BRIGHTNESS, 0, 0));
+  delay(50);
+  lightPixels(pixels.Color(0, 0, 0));
+#endif
+}
+
+// webserver functions
 String processHeader(String header)
 {
+  Serial.println("Processing header");
   int rssi = WiFi.RSSI();
+  Serial.println("RSSI: " + String(rssi));
   header.replace("{{rssi}}", String(rssi));
   struct tm timeinfo;
-  getLocalTime(&timeinfo);
-  // convert time to timestamp
-  time_t timestamp = mktime(&timeinfo);
-  header.replace("{{current_time}}", String(timestamp).c_str());
+  Serial.println("Getting local time");
+  if (getLocalTime(&timeinfo))
+  {
+    Serial.println("Got local time");
+    // convert time to timestamp
+    time_t timestamp = mktime(&timeinfo);
+    header.replace("{{current_time}}", String(timestamp).c_str());
+  };
   return header;
 }
 String processTemplate(String html, bool devnet, String LastGuess, String apiKey, tm lastTime, String version)
@@ -289,7 +270,7 @@ void handleSettings(AsyncWebServerRequest *request)
 void handleStats(AsyncWebServerRequest *request)
 {
 
-  File file = SPIFFS.open("/stats.html", "r");
+  File file = SPIFFS.open("/index.html", "r");
   if (!file)
   {
     request->send(500, "text/plain", "File not found");
@@ -313,68 +294,6 @@ void HandleConfirmReboot(AsyncWebServerRequest *request)
   // send back a themed page to confirm the reboot
   request->send(SPIFFS, "/confirmreboot.html", String(), false);
 }
-void sendStatsToClients()
-{
-  // Create a JSON object to hold the stats
-  JsonDocument jsonDoc;
-
-  // Fill in the data
-  jsonDoc["DevNet"] = devnet;
-  jsonDoc["IP"] = WiFi.localIP().toString();
-  jsonDoc["Uptime"] = millis() / 1000 / 60 / 60;           // Convert milliseconds to hours
-  jsonDoc["LastRequestTime"] = mktime(&lastSubmittedTime); // Use the timestamp
-  jsonDoc["LastRequestStatus"] = LastGuessAccepted;
-  jsonDoc["APIKey"] = apiKey;
-  jsonDoc["Version"] = version;
-  jsonDoc["RSSI"] = WiFi.RSSI();
-  tm timeinfo;
-  // logToWebSocket("    local time");
-  if (getLocalTime(&timeinfo))
-  {
-    jsonDoc["current_time"] = mktime(&timeinfo);
-  }
-
-  // Serialize the JSON data to a string
-  String jsonString;
-  serializeJson(jsonDoc, jsonString);
-
-  // Broadcast the stats to all connected WebSocket clients
-  ws.textAll(jsonString);
-}
-void triggerSucess()
-{
-#ifdef LEDPIN
-  blinkLED();
-#endif
-#ifdef RGBPIN
-  lightPixels(pixels.Color(0, BRIGHTNESS, 0));
-  delay(50);
-  lightPixels(pixels.Color(0, 0, 0));
-#endif
-}
-void triggerError()
-{
-#ifdef RGBPIN
-  lightPixels(pixels.Color(BRIGHTNESS, 0, 0));
-  delay(50);
-  lightPixels(pixels.Color(0, 0, 0));
-#endif
-}
-
-bool shouldSendUpdate()
-{
-  // Logic to determine when to send updates (e.g., every few seconds)
-  static unsigned long lastUpdateTime = 0;
-  unsigned long currentTime = millis();
-
-  if (currentTime - lastUpdateTime > 5000)
-  { // 5-second interval
-    lastUpdateTime = currentTime;
-    return true;
-  }
-  return false;
-}
-// handle wildcard css lookup
 void handleCss(AsyncWebServerRequest *request)
 {
   String path = request->url();
@@ -397,8 +316,6 @@ void handleCss(AsyncWebServerRequest *request)
   request->send(file, contentType);
   file.close();
 }
-
-// handle wildcard js lookup
 void handleJs(AsyncWebServerRequest *request)
 {
   String path = request->url();
@@ -413,151 +330,83 @@ void handleJs(AsyncWebServerRequest *request)
   request->send(file, contentType);
   file.close();
 };
-
-void setup()
+void handleCaptivePortal(AsyncWebServerRequest *request)
 {
-  esp_ota_mark_app_valid_cancel_rollback();
-
-  Serial.begin(115200);
-
-  logToWebSocket("trying to load preferences");
-  preferences.begin("wifiCreds", false);
-  // Initialize SPIFFS
-  if (!SPIFFS.begin(true))
+  Serial.println("Captive portal requested");
+  Serial.println(request->url());
+  File file = SPIFFS.open("/settings.html", "r");
+  if (!file)
   {
-    logToWebSocket("An Error has occurred while mounting SPIFFS");
+    request->send(500, "text/plain", "File not found");
     return;
   }
+  String html = file.readString();
+  file.close();
+  html = processTemplate(html, devnet, LastGuessAccepted, apiKey, lastSubmittedTime, version);
+  // comment out all the scripts in the html
+  // html.replace("<script", "<!-- <script");
+  // html.replace("</script>", "</script> -->");
 
-  const esp_partition_t *partition;
-  esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
-  String ssid = preferences.getString("ssid", "");
-  String password = preferences.getString("password", "");
-  String key = preferences.getString("apiKey", "");
-  Serial.println("TESING");
-  devnet = preferences.getBool("devnet", false);
-
-//
-// if d == "true" then devnet = true else false
-// devnet =
-#ifdef RGBPIN
-  setupRGBLED();
-#endif
-#ifdef LEDPIN
-  setupLED();
-#endif
-
-  // lightPixels(pixels.Color(BRIGHTNESS, 0, 0));
-
-  if (ssid == "" || password == "")
+  request->send(200, "text/html", html);
+}
+void handleNotFound(AsyncWebServerRequest *request)
+{
   {
 
-    // No credentials, start in Access Point mode
-    WiFi.softAP(apSSID, apPassword);
-    logToWebSocket("Started Access Point");
-    logToWebSocket("connect to " + WiFi.softAPIP().toString());
-    // lightPixels(pixels.Color(102, 0, 255));
-    // Start the web server
-    dnsServer.start(DNS_PORT, "*", apIP);
-    server.on("/generate_204", handleNoContent);       // Android Captive Portal
-    server.on("/hotspot-detect.html", handleSettings); // iOS Captive Portal
-    server.on("/captive.apple.com", handleSettings);   // Another iOS URL
+    handleCaptivePortal(request);
   }
+}
+void setupAP()
+{
+  WiFi.softAP(apSSID, apPassword);
 
-  else
-  {
-    // Connect to WiFi
+#ifdef DISPLAY
+  display.fillScreen(TFT_BLACK);
+  // make the text purple
+  display.setTextColor(TFT_PURPLE, TFT_BLACK);
+  // set the text size so this fits the screen width CONNECT TO WiFi Erwin
+  display.setTextSize(2);
+  display.setCursor(0, 0);
+  display.println("Erwin Box Opener");
+  display.println("Connect to:");
+  display.println(apSSID);
 
-    WiFi.begin(ssid.c_str(), password.c_str());
-
-    if (!MDNS.begin("erwin"))
-    { // Set the hostname to "esp32.local"
-      Serial.println("Error setting up MDNS responder!");
-      while (1)
-      {
-        delay(1000);
-      }
-    }
-    logToWebSocket("mDNS responder started");
-
-    logToWebSocket("Connecting to WiFi...");
-    logToWebSocket("ssid: " + ssid + "\n");
-    logToWebSocket("password: " + password + "\n");
-    if (WiFi.waitForConnectResult() != WL_CONNECTED)
-    {
-      logToWebSocket("WiFi Failed! Starting AP mode");
-      WiFi.softAP(apSSID, apPassword);
-#ifdef RGBPIN // Only include if RGBLED build flag is defined
-      lightPixels(pixels.Color(0, 0, 255));
 #endif
-    }
-    else
-    {
-      logToWebSocket("WiFi Connected!");
-      // You can now use the API key stored
-    }
-  }
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
-  server.on("/", handleRoot);
-  server.on("/save", handleSave);
-  server.on("/stats", handleStats);
-  server.on("/css/*", handleCss);
-  server.on("/js/*", handleJs);
+  logToWebSocket("Started Access Point");
+  logToWebSocket("connect to " + WiFi.softAPIP().toString());
+  // lightPixels(pixels.Color(102, 0, 255));
+  // Start the web server
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.start(DNS_PORT, "*", apIP);
+  server.on("/generate_204", [](AsyncWebServerRequest *request)
+            { handleCaptivePortal(request); }); // android captive portal redirect
+  server.on("captive.apple.com", [](AsyncWebServerRequest *request)
+            { handleCaptivePortal(request); }); // apple captive portal redirect
+  server.on("/hotspot-detect.html", [](AsyncWebServerRequest *request)
+            { handleCaptivePortal(request); }); // microsoft captive portal redirect
+  server.on("/library/test/success.html", [](AsyncWebServerRequest *request)
+            { handleCaptivePortal(request); }); // microsoft captive portal redirect
+  server.on("/generate_204", [](AsyncWebServerRequest *request)
+            { handleCaptivePortal(request); }); // android captive portal redirect
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/style.css", "text/css"); });
-  server.on("/settings", handleSettings);
-  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/favicon.ico", "image/x-icon"); });
+  server.on("/save", handleSave);
   server.on("/image", HTTP_GET, [](AsyncWebServerRequest *request)
             {
               Serial.println("Sending image");
               request->send(SPIFFS, "/labsmall.png", "image/png"); });
-  server.on("/logs", handleLogger);
-  server.on("/header", HTTP_GET, [](AsyncWebServerRequest *request)
-            {
-              // get the header file from spiffs and process it before sending
-              File file = SPIFFS.open("/header.html", "r");
-              if (!file)
-              {
-                request->send(500, "text/plain", "File not found");
-                return;
-              }
-              String html = processHeader(file.readString());
-              file.close();
-              request->send(200, "text/html", html); });
-  server.on("/header.js", HTTP_GET, [](AsyncWebServerRequest *request)
-            {
-              // get the header file from spiffs and process it before sending
-              File file = SPIFFS.open("/header.js", "r");
-              if (!file)
-              {
-                request->send(500, "text/plain", "File not found");
-                return;
-              }
-              String html = file.readString();
-              file.close();
-              request->send(200, "text/javascript", html); });
-  server.on("/update", HTTP_GET, handleUpdater);
-  server.on("/update", HTTP_POST, handleUpdate);
-  server.onNotFound([](AsyncWebServerRequest *request)
-                    { request->send(404, "text/plain", "Not found"); });
-  server.on("/reboot", handleReboot);
-  apiKey = key;
-  // // apiKey = key; // <-- Make sure to assign the retrieved key to the global apiKey
 
-  logToWebSocket("===============\n");
-  logToWebSocket("Box-opener started\n");
+  server.onNotFound(handleNotFound);
 
-  ws.onEvent(onWsEvent);
-  server.addHandler(&ws);
-  Serial.println("Free heap before server begin: " + String(ESP.getFreeHeap()));
-
-  server.begin();
-  Serial.println("Free heap after server begin: " + String(ESP.getFreeHeap()));
+  if (!MDNS.begin("erwin"))
+  { // Set the hostname to "esp32.local"
+    logToWebSocket("Error setting up MDNS responder!");
+  }
 }
 
-//===== generate table of 50 bip39 12-word mnemonics
+// shrodiner's functions
+// generate table of 50 bip39 12-word mnemonics
 void generateMnemonics(String *mnemonics)
 {
   for (int i = 0; i < numGuesses; i++)
@@ -573,7 +422,7 @@ void generateMnemonics(String *mnemonics)
     // logToWebSocket("Generated mnemonic: " + mnemonics[i] + "\n");
   }
 }
-//===== submit mnemonics to Oracle
+// submit mnemonics to Oracle
 bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey)
 {
   bool ret = false;
@@ -608,6 +457,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       // make the pixels green
       triggerSucess();
       LastGuessAccepted = "Accepted";
+      sucessfulGuesses++;
       ret = false;
     }
     else if (httpResponseCode == 404) // "Closed Box Not Found"
@@ -616,6 +466,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       ret = false;
       triggerError();
       LastGuessAccepted = response.c_str();
+      failedGuesses++;
     }
     else if (httpResponseCode == 500 || httpResponseCode == 502)
     {
@@ -623,15 +474,17 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       ret = true;
       triggerError();
       LastGuessAccepted = "Server Error";
+      failedGuesses++;
     }
     else
     {
       logToWebSocket("❌ Guesses rejected :" + String(response.c_str()) + "\n");
       LastGuessAccepted = response.c_str();
       triggerError();
-
+      failedGuesses++;
       ret = true;
     }
+    DisplayGfx(httpResponseCode, response);
   }
   else // even more other errors :V maybe do a reconnect?
   {
@@ -644,37 +497,242 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
   http.end();
   return ret;
 }
+// updateer functions
 void update_started()
 {
   logToWebSocket("CALLBACK:  HTTP update process started");
 }
-
 void update_finished()
 {
   logToWebSocket("CALLBACK:  HTTP update process finished");
 }
-
 void update_progress(int cur, int total)
 {
   // logToWebSocket("CALLBACK:  HTTP update process at %d of %d bytes...\n", cur, total);
 }
-
 void update_error(int err)
+
 {
   logToWebSocket("CALLBACK:  HTTP update fatal error code " + String(err) + "\n");
 }
+
 //====== main loop ====
+
+void setup()
+{
+  Serial.begin(115200);
+  if (!SPIFFS.begin(true))
+  {
+    logToWebSocket("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+  delay(1000);
+#ifdef RGBPIN
+  setupRGBLED();
+#endif
+#ifdef LEDPIN
+  setupLED();
+#endif
+#ifdef BUTTONPIN
+  pinMode(buttonPin, INPUT_PULLUP);
+#endif
+#ifdef DISPLAY
+  Serial.println("Display setup");
+  delay(1000);
+  // clear the memory on the screen
+  display.fillScreen(TFT_BLACK);
+  pinMode(TFT_BL, OUTPUT);
+  displayInit();
+  displaySplash();
+#endif
+  // mark as safe to boot
+  esp_ota_mark_app_valid_cancel_rollback();
+  logToWebSocket("trying to load preferences");
+  preferences.begin("wifiCreds", false);
+  String ssid = preferences.getString("ssid", "");
+  String password = preferences.getString("password", "");
+  String key = preferences.getString("apiKey", "");
+  apiKey = key;
+  Serial.println("TESING");
+  Serial.println(key);
+  devnet = preferences.getBool("devnet", false);
+  // Initialize SPIFFS
+
+  if (ssid == "" || password == "")
+  {
+    // No credentials, start in Access Point mode
+    setupAP();
+  }
+  else
+  {
+    // Connect to WiFi
+    logToWebSocket("Connecting to WiFi...");
+    logToWebSocket("ssid: " + ssid + "\n");
+    logToWebSocket("password: " + password + "\n");
+    WiFi.begin(ssid.c_str(), password.c_str());
+    // if wifi fails to connect, start in AP mode
+    if (WiFi.waitForConnectResult() != WL_CONNECTED)
+    {
+      WiFi.disconnect();
+
+      delay(1000);
+      setupAP();
+    }
+    else
+    {
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+      if (!MDNS.begin("erwin"))
+      { // Set the hostname to "esp32.local"
+        Serial.println("Error setting up MDNS responder!");
+      }
+
+      server.on("/", handleStats);
+      server.on("/save", handleSave);
+      server.on("/stats", handleStats);
+      server.on("/css/*", handleCss);
+      server.on("/js/*", handleJs);
+      server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
+                { request->send(SPIFFS, "/style.css", "text/css"); });
+      server.on("/settings", handleSettings);
+      server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request)
+                { request->send(SPIFFS, "/favicon.ico", "image/x-icon"); });
+      server.on("/image", HTTP_GET, [](AsyncWebServerRequest *request)
+                {
+              Serial.println("Sending image");
+              request->send(SPIFFS, "/labsmall.png", "image/png"); });
+      server.on("/logs", handleLogger);
+      server.on("/header", HTTP_GET, [](AsyncWebServerRequest *request)
+                {
+              // get the header file from spiffs and process it before sending
+              File file = SPIFFS.open("/header.html", "r");
+              if (!file)
+              {
+                request->send(500, "text/plain", "File not found");
+                return;
+              }
+              String html = processHeader(file.readString());
+              Serial.println("Sending header");
+              file.close();
+              request->send(200, "text/html", html); });
+      server.on("/header.js", HTTP_GET, [](AsyncWebServerRequest *request)
+                {
+              // get the header file from spiffs and process it before sending
+              File file = SPIFFS.open("/header.js", "r");
+              if (!file)
+              {
+                request->send(500, "text/plain", "File not found");
+                return;
+              }
+              String html = file.readString();
+              file.close();
+              request->send(200, "text/javascript", html); });
+      server.on("/update", HTTP_GET, handleUpdater);
+      server.on("/update", HTTP_POST, handleUpdate);
+      server.onNotFound([](AsyncWebServerRequest *request)
+                        { request->send(404, "text/plain", "Not found"); });
+      server.on("/reboot", handleReboot);
+
+      logToWebSocket("===============\n");
+      logToWebSocket("Box-opener started\n");
+
+      // ws.onEvent(onWsEvent);
+      server.addHandler(&ws);
+      Serial.println("Free heap before server begin: " + String(ESP.getFreeHeap()));
+
+      Serial.println("Free heap after server begin: " + String(ESP.getFreeHeap()));
+    }
+  }
+  server.begin();
+  // delay(2000);
+  // display.writecommand(ST7789_DISPON); // turn off lcd display
+  display.fillScreen(TFT_BLACK);
+  loadCatInBox();
+}
 void loop()
 {
-  // server.handleClient();
-  //
-  //--- reconnect wifi if it is not connected by some reason
+  // if no api key then stop the boxopener
+  if (apiKey == "")
+  {
+    opener_running = false;
+  }
+#ifdef BUTTONPIN
+  // check if the button state has changed
+  // print out the button state
+  // Serial.println(digitalRead(buttonPin));
+  if (digitalRead(buttonPin) == LOW)
+  {
+    if (millis() - lastPressTime > debounceTime)
+    {
+      // log the button press
+      logToWebSocket("Button pressed");
+      // flip the backlight
+      backlight = !backlight;
+      lastPressTime = millis();
+    }
+
+    // wait 10ms to debounce
+    delay(debounceTime);
+    // if the button is still pressed
+    if (digitalRead(buttonPin) == LOW)
+    {
+      // log the button press
+
+      logToWebSocket("Button pressed");
+      // flip the backlight
+      if (displayPage == maxPage)
+      {
+        lastPage = maxPage;
+        displayPage = 0;
+      }
+      else
+      {
+        lastPage = displayPage;
+        displayPage++;
+      }
+    }
+  }
+#endif
+  // if the page has changed update it
+  if (lastPage != displayPage)
+  {
+    // log the page change
+    logToWebSocket("Page changed to: " + String(displayPage));
+    // display the correct page
+    switch (displayPage)
+    {
+    case 0:
+      // display the cat
+      loadCatInBox();
+
+      break;
+    case 1:
+      screenStats();
+      break;
+    case 2:
+      // display the logs
+      break;
+    case 3:
+      // display the settings
+      break;
+    case 4:
+      // display the update
+      break;
+    case 5:
+      // display the reboot
+      break;
+    default:
+      break;
+    }
+    lastPage = displayPage;
+  }
+
   ws.cleanupClients();
-  if (shouldSendUpdate())
+  if (shouldSendUpdate() && WiFi.status() == WL_CONNECTED)
   {
     sendStatsToClients();
   }
-  if (WiFi.status() == WL_CONNECTED)
+  if (WiFi.getMode() != WIFI_AP)
   {
     // check the last time we made a request if its been more than sleepTime then make another request
     if (millis() - lastUpdatCheck > updateCheckInterval || lastUpdatCheck == 0)
@@ -750,12 +808,6 @@ void loop()
 
                 if (err == ESP_OK)
                 {
-                  logToWebSocket("Successfully set the next boot partition!");
-                  // sprint the next boot partition
-                  const esp_partition_t *new_boot_partition = esp_ota_get_boot_partition();
-                  logToWebSocket("new boot partition: " + String(new_boot_partition->label) + "\n");
-                  logToWebSocket("Rebooting to the new partition...");
-                  delay(1000); // Give time for the serial output to finish
                   preferences.putString("version", newvers);
                   esp_restart();
                 }
@@ -777,16 +829,12 @@ void loop()
     }
     if (millis() - lastRequestTime > sleepTime)
     {
-      Serial.println("API Key: " + apiKey);
+
+      // Serial.println("API Key: " + apiKey);
       // if apikey is not set then return
-      if (apiKey == "" || opener_running == false)
-      {
-        // logToWebSocket("API Key not set, Opener shutdown Please set the API Key");
-        Serial.println("API Key not set, Opener shutdown Please set the API Key");
-        opener_running = false;
-      }
-      Serial.println("im in the loop");
-      Serial.println("opener running:" + String(opener_running));
+
+      // Serial.println("im in the loop");
+      // Serial.println("opener running:" + String(opener_running));
       if (opener_running == true)
       {
         logToWebSocket("⚙️ Generating guesses...");
@@ -810,9 +858,9 @@ void loop()
         {
           sleepTime = 10000;
         }
-        if (sleepTime > 61000) // if sleep for more than a minute limit it to one minute
+        if (sleepTime > 71000) // if sleep for more than a minute limit it to one minute
         {
-          sleepTime = 61000;
+          sleepTime = 71000;
         }
 
         logToWebSocket("waiting " + String(sleepTime / 1000) + "s for next batch...\n");
@@ -821,7 +869,7 @@ void loop()
         struct tm timeinfo;
         if (!getLocalTime(&timeinfo))
         {
-          logToWebSocket("Failed to obtain time");
+          logToWebSocket("Failed to obtain NTP time");
         }
         else
         {
@@ -840,5 +888,5 @@ void loop()
 
     dnsServer.processNextRequest();
   };
-  (10);
+  delay(100);
 }
