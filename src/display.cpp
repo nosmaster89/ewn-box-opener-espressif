@@ -189,6 +189,8 @@ void displaySplash()
 }
 void DisplayGfx(int code, String response)
 {
+    String text;
+
     switch (displayPage)
     {
     case 0:
@@ -196,8 +198,9 @@ void DisplayGfx(int code, String response)
         Ksprite.createSprite(KITTY_WIDTH, KITTY_HEIGHT);
         Ksprite.pushImage(0, 0, KITTY_WIDTH, KITTY_HEIGHT, kitty);
         Ksprite.pushSprite(KITTY_X, KITTY_Y, TFT_BLACK);
-        DATEsprite.fillSprite(TFT_TRANSPARENT);
-        DATEsprite.pushSprite(DATE_X, DATE_Y, TFT_TRANSPARENT);
+        DATEsprite.deleteSprite();
+        DATEsprite.createSprite(DATE_WIDTH, DATE_HEIGHT);
+        DATEsprite.pushSprite(DATE_X, DATE_Y);
         DATEsprite.setTextColor(TFT_WHITE);
         DATEsprite.deleteSprite();
         DATEsprite.createSprite(DATE_WIDTH, DATE_HEIGHT);
@@ -228,42 +231,57 @@ void DisplayGfx(int code, String response)
 
             DATEsprite.setCursor((DATE_WIDTH - x) / 2, (DATE_HEIGHT - h2) / 2);
             DATEsprite.println(timeStr);
-            DATEsprite.pushSprite(DATE_X, DATE_Y, TFT_TRANSPARENT);
+            DATEsprite.pushSprite(DATE_X, DATE_Y, TFT_BLACK);
         }
 
-        TEXTsprite.fillSprite(TFT_TRANSPARENT);
-        TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y, TFT_TRANSPARENT);
-        TEXTsprite.setTextColor(TFT_WHITE);
+        // TEXTsprite.fillSprite(TFT_BLACK);
+        // TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y, TFT_BLACK);
+        // TEXTsprite.deleteSprite();
+
         TEXTsprite.deleteSprite();
         TEXTsprite.createSprite(TXT_B_WIDTH, TXT_B_HEIGHT);
+        // TEXTsprite.setTextColor(TFT_WHITE, TFT_BLACK, TFT_TRANSPARENT);
+        // TEXTsprite.fillSprite(TFT_BLACK);
+        TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y);
         TEXTsprite.setTextSize(1);
-        // TEXTsprite.setTextColor(TF/T_GREEN);
         // create 2 random words string 1 and string 2
         TEXTsprite.setTextColor(TFT_RED);
         switch (code)
         {
         case 202:
             TEXTsprite.setTextColor(TFT_GREEN);
-            TEXTsprite.println("Accepted");
+            text = "Accepted";
             break;
         case 404:
-            TEXTsprite.println("Rejected");
+            text = "Box Opened";
             break;
         case 401:
-            TEXTsprite.println("Unauthorized");
+            text = "Unauthorized";
             break;
         case 429:
-            TEXTsprite.println("Rate Limited");
+            text = "Rate Limited";
             break;
         case 500:
-            TEXTsprite.println("Server Error");
+            text = "Internal Server Error";
             break;
         default:
-            TEXTsprite.println("Unknown Error");
+            text = "Unknown";
             break;
         }
+
+        if (display.textWidth(text.c_str(), 1) > TXT_B_WIDTH)
+        {
+            TEXTsprite.setCursor(0, (TXT_B_HEIGHT - display.fontHeight(1)) / 2);
+        }
+        else
+        {
+
+            TEXTsprite.setCursor((TXT_B_WIDTH - display.textWidth(text.c_str(), 1)) / 2, (TXT_B_HEIGHT - display.fontHeight(1)) / 2);
+        }
+        TEXTsprite.println(text);
+
         // push the sprite to the screen
-        TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y, TFT_TRANSPARENT);
+        TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y, TFT_BLACK);
         break;
     case 1:
         // display the stats
