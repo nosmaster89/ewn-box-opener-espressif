@@ -491,6 +491,9 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     logToWebSocket("❌ Error in HTTP request: " + http.errorToString(httpResponseCode) + "\n");
     ret = true;
     triggerError();
+    DisplayGfx(httpResponseCode, "Error");
+    failedGuesses++;
+
     // if 502 or 500 then report server error
   }
 
@@ -888,5 +891,5 @@ void loop()
 
     dnsServer.processNextRequest();
   };
-  delay(100);
+  delay(10);
 }
