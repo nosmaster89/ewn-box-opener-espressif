@@ -492,7 +492,9 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     ret = true;
     triggerError();
     DisplayGfx(httpResponseCode, "Error");
+
     failedGuesses++;
+
 
     // if 502 or 500 then report server error
   }
