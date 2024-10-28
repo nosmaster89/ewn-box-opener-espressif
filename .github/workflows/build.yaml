@@ -36,7 +36,7 @@ jobs:
 
       - name: Build PlatformIO Project
         run: |
-          pio run --target build
+          pio run 
           pio run --target buildfs
       # compile the release for each board
       - name: CompileRelease
