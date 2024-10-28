@@ -35,7 +35,7 @@
 #include <button.h>
 #include <websockets.h>
 #include <display.h>
-#ifdef DISPLAY
+#ifdef SCREEN
 #include <kitty.h>
 
 #endif
@@ -360,7 +360,7 @@ void setupAP()
 {
   WiFi.softAP(apSSID, apPassword);
 
-#ifdef DISPLAY
+#ifdef SCREEN
   display.fillScreen(TFT_BLACK);
   // make the text purple
   display.setTextColor(TFT_PURPLE, TFT_BLACK);
@@ -484,6 +484,7 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
       failedGuesses++;
       ret = true;
     }
+#ifdef SCREEN
     DisplayGfx(httpResponseCode, response);
   }
   else // even more other errors :V maybe do a reconnect?
@@ -495,9 +496,9 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
 
     failedGuesses++;
 
-
     // if 502 or 500 then report server error
   }
+#endif
 
   http.end();
   return ret;
@@ -541,7 +542,7 @@ void setup()
 #ifdef BUTTONPIN
   pinMode(buttonPin, INPUT_PULLUP);
 #endif
-#ifdef DISPLAY
+#ifdef SCREEN
   Serial.println("Display setup");
   delay(1000);
   // clear the memory on the screen
@@ -649,10 +650,12 @@ void setup()
     }
   }
   server.begin();
-  // delay(2000);
-  // display.writecommand(ST7789_DISPON); // turn off lcd display
+// delay(2000);
+// display.writecommand(ST7789_DISPON); // turn off lcd display
+#ifdef SCREEN
   display.fillScreen(TFT_BLACK);
   loadCatInBox();
+#endif
 }
 void loop()
 {
@@ -697,7 +700,6 @@ void loop()
       }
     }
   }
-#endif
   // if the page has changed update it
   if (lastPage != displayPage)
   {
@@ -731,6 +733,7 @@ void loop()
     }
     lastPage = displayPage;
   }
+#endif
 
   ws.cleanupClients();
   if (shouldSendUpdate() && WiFi.status() == WL_CONNECTED)

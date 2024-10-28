@@ -1,4 +1,4 @@
-#ifdef DISPLAY
+#ifdef SCREEN
 #ifndef DISPLAY_S3
 #define DISPLAY_S3
 const int SCREEN_WIDTH = 340;
