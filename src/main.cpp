@@ -33,8 +33,8 @@
 #include <led.h>
 #include <button.h>
 #include <websockets.h>
-#include <display.h>
 #ifdef SCREEN
+#include <display.h>
 #include <kitty.h>
 #include <TFT_eSPI.h>
 
