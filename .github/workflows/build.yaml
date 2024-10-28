@@ -16,10 +16,36 @@ jobs:
           key: ${{ runner.os }}-pio
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+      - name: release
+        uses: actions/create-release@v1
+        id: create_release
+        with:
+          draft: false
+          prerelease: false
+          release_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref }}
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
       - name: Build PlatformIO Project
-        run: pio run --target buildfs
-      
+        run: |
+          pio run --target build
+          pio run --target buildfs
+      # compile the release for each board
+      - name: CompileRelease
+        run: |
+          cd .pio/build/esp32dev
+          esptool.py --chip ESP32-S3 merge_bin -o t-display-s3.bin --flash_mode dio --flash_size 16MB 0x0000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
+      - name: upload darwin artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./.pio/build/t-display-s3/t-display-s3.bin
+          asset_name: t-display-s3.bin
+          asset_content_type: application/octet-stream
