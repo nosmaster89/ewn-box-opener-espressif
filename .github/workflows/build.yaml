@@ -37,13 +37,13 @@ jobs:
         run: pio lib install
       - name: Build PlatformIO Project
         run: |
-          pio run 
-          pio run --target buildfs
+          pio run -e t-display-s3
+          pio run -e t-display-s3 --target buildfs
       # compile the release for each board
       - name: CompileRelease
         run: |
           cd .pio/build/t-display-s3/
-          pio pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o t-display-s3.bin --flash_mode dio --flash_size 16MB 0x0000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
+          pio pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o t-display-s3.bin --flash_mode dio --flash_size 16MB 0xMeld000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
       - name: upload darwin artifact
         uses: actions/upload-release-asset@v1
         env:
