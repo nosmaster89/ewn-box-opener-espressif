@@ -147,7 +147,7 @@ jobs:
       - name: Compile super_mini_esp32c3
         run: |
           cd .pio/build/super_mini_esp32c3/
-          pio pkg exec -- esptool.py --chip ESP32-C3 merge_bin -o super_mini_esp32c3.bin --flash_mode dio --flash_size 4MB 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
+          pio pkg exec -- esptool.py --chip ESP32-C3 merge_bin -o super_mini_esp32c3.bin --flash_mode dio --flash_size 4MB 0x0000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
       - name: upload super_mini_esp32c3 artifact
         uses: actions/upload-release-asset@v1
         env:
