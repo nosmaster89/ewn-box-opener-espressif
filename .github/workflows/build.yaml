@@ -123,20 +123,20 @@ jobs:
       # compile for s3 zero
       - name: Build for s3 zero
         run: |
-          pio run -e s3-zero
-          pio run -e s3-zero --target buildfs
+          pio run -e lolin_s3_mini
+          pio run -e lolin_s3_mini --target buildfs
       - name: Compile s3 zero
         run: |
-          cd .pio/build/s3-zero/
-          pio pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o s3-zero.bin --flash_mode dio --flash_size 4MB 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
+          cd .pio/build/lolin_s3_mini/
+          pio pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o lolin_s3_mini.bin --flash_mode dio --flash_size 4MB 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
       - name: upload s3 zero artifact
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: .pio/build/s3-zero/s3-zero.bin
-          asset_name: s3-zero.bin
+          asset_path: .pio/build/lolin_s3_mini/lolin_s3_mini.bin
+          asset_name: lolin_s3_mini.bin
           asset_content_type: application/octet-stream
 
       # compile for c3 supermini
