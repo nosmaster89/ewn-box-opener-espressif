@@ -9,14 +9,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
         with:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
           key: ${{ runner.os }}-pio
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
