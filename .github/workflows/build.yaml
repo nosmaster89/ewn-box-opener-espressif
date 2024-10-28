@@ -43,7 +43,7 @@ jobs:
       - name: CompileRelease
         run: |
           cd .pio/build/esp32dev
-          esptool.py --chip ESP32-S3 merge_bin -o t-display-s3.bin --flash_mode dio --flash_size 16MB 0x0000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
+          pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o t-display-s3.bin --flash_mode dio --flash_size 16MB 0x0000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
       - name: upload darwin artifact
         uses: actions/upload-release-asset@v1
         env:
