@@ -486,19 +486,21 @@ bool submitGuesses(String *mnemonics, const String &apiUrl, const String &apiKey
     }
 #ifdef SCREEN
     DisplayGfx(httpResponseCode, response);
+#endif
   }
   else // even more other errors :V maybe do a reconnect?
   {
     logToWebSocket("❌ Error in HTTP request: " + http.errorToString(httpResponseCode) + "\n");
     ret = true;
     triggerError();
-    DisplayGfx(httpResponseCode, "Error");
 
     failedGuesses++;
+#ifdef SCREEN
+    DisplayGfx(httpResponseCode, "Error");
+#endif
 
     // if 502 or 500 then report server error
   }
-#endif
 
   http.end();
   return ret;
