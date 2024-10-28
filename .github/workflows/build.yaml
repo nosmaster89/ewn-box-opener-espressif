@@ -39,11 +39,11 @@ jobs:
         run: |
           pio system info
           python3 --version
-
+      #include <User_Setups/Setup206_LilyGo_T_Display_S3.h>     // For the LilyGo T-Display S3 based ESP32S3 with ST7789 170 x 320 TFT
       - name: Build PlatformIO Project
         run: |
           sed -i 's/#include <User_Setup.h>//g' .pio/libdeps/t-display-s3/TFT_eSPI/User_Setup_Select.h
-          sed -i 's/\/\/#include <User_Setups\/Setup207_LilyGo_T_HMI.h>/#include <User_Setups\/Setup207_LilyGo_T_HMI.h>/g' .pio/libdeps/t-display-s3/TFT_eSPI/User_Setup_Select.h
+          sed -i 's/\/\/#include <User_Setups/Setup206_LilyGo_T_Display_S3.h>/#include <User_Setups/Setup206_LilyGo_T_Display_S3.h>/g' .pio/libdeps/t-display-s3/TFT_eSPI/User_Setup_Select.h
           pio run -e t-display-s3
           pio run -e t-display-s3 --target buildfs
       # compile the release for each board
