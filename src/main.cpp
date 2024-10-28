@@ -27,7 +27,6 @@
 #include "ESPAsyncWebServer.h"
 #include "esp_ota_ops.h"
 #include <ESPmDNS.h>
-#include <TFT_eSPI.h>
 // board modules include
 #include <param.h>
 #include <rgbled.h>
@@ -37,6 +36,7 @@
 #include <display.h>
 #ifdef SCREEN
 #include <kitty.h>
+#include <TFT_eSPI.h>
 
 #endif
 #define NUMPIXELS 1
