@@ -1,5 +1,5 @@
 // #include <display.h>
-#ifdef DISPLAY
+#ifdef SCREEN
 #include <websockets.h>
 #include <param.h>
 #include <TFT_eSPI.h>
@@ -194,18 +194,12 @@ void DisplayGfx(int code, String response)
     switch (displayPage)
     {
     case 0:
+        Serial.println("Displaying cat");
         Ksprite.deleteSprite();
         Ksprite.createSprite(KITTY_WIDTH, KITTY_HEIGHT);
         Ksprite.pushImage(0, 0, KITTY_WIDTH, KITTY_HEIGHT, kitty);
         Ksprite.pushSprite(KITTY_X, KITTY_Y, TFT_BLACK);
-        DATEsprite.deleteSprite();
-        DATEsprite.createSprite(DATE_WIDTH, DATE_HEIGHT);
-        DATEsprite.pushSprite(DATE_X, DATE_Y);
-        DATEsprite.setTextColor(TFT_WHITE);
-        DATEsprite.deleteSprite();
-        DATEsprite.createSprite(DATE_WIDTH, DATE_HEIGHT);
-        DATEsprite.setTextSize(1);
-        DATEsprite.setTextColor(TFT_GREEN);
+
         // get the width of the text
         int16_t x1, y1;
         uint16_t w, h;
@@ -217,15 +211,20 @@ void DisplayGfx(int code, String response)
         }
         else
         {
-            logToWebSocket("Time: " + String(asctime(&timeinfo)));
             // get the time
-            // turn the time into a short string dd/mm/yyyy hh:mm:ss
-            char timeStr[20];
+            // turn the time into a short string hh:mm:ss
+            char timeStr[9]; // space for hh:mm:ss\0
             strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
-
-            int x = display.textWidth(timeStr, 1); // Get the width of the text
+            logToWebSocket("Time: " + String(timeStr));
+            DATEsprite.deleteSprite();
+            DATEsprite.createSprite(DATE_WIDTH, DATE_HEIGHT);
+            DATEsprite.pushSprite(DATE_X, DATE_Y);
+            DATEsprite.setTextSize(1);
+            DATEsprite.setTextColor(TFT_GREEN);
+            int x = DATEsprite.textWidth(timeStr, 1); // Get the width of the text
             logToWebSocket("Time width: " + String(x));
-            int h2 = display.fontHeight(1); // Get the height of the font
+            logToWebSocket("Date box width: " + String(DATE_WIDTH));
+            int h2 = DATEsprite.fontHeight(1); // Get the height of the font
             logToWebSocket("Font height: " + String(h2));
             logToWebSocket("cursor: " + String((DATE_WIDTH - x) / 2) + " " + String((DATE_HEIGHT - h2) / 2));
 
@@ -233,18 +232,10 @@ void DisplayGfx(int code, String response)
             DATEsprite.println(timeStr);
             DATEsprite.pushSprite(DATE_X, DATE_Y, TFT_BLACK);
         }
-
-        // TEXTsprite.fillSprite(TFT_BLACK);
-        // TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y, TFT_BLACK);
-        // TEXTsprite.deleteSprite();
-
         TEXTsprite.deleteSprite();
         TEXTsprite.createSprite(TXT_B_WIDTH, TXT_B_HEIGHT);
-        // TEXTsprite.setTextColor(TFT_WHITE, TFT_BLACK, TFT_TRANSPARENT);
-        // TEXTsprite.fillSprite(TFT_BLACK);
         TEXTsprite.pushSprite(TXT_B_X, TXT_B_Y);
         TEXTsprite.setTextSize(1);
-        // create 2 random words string 1 and string 2
         TEXTsprite.setTextColor(TFT_RED);
         switch (code)
         {
@@ -269,14 +260,14 @@ void DisplayGfx(int code, String response)
             break;
         }
 
-        if (display.textWidth(text.c_str(), 1) > TXT_B_WIDTH)
+        if (TEXTsprite.textWidth(text.c_str(), 1) > TXT_B_WIDTH)
         {
-            TEXTsprite.setCursor(0, (TXT_B_HEIGHT - display.fontHeight(1)) / 2);
+            TEXTsprite.setCursor(0, (TXT_B_HEIGHT - TEXTsprite.fontHeight(1)) / 2);
         }
         else
         {
 
-            TEXTsprite.setCursor((TXT_B_WIDTH - display.textWidth(text.c_str(), 1)) / 2, (TXT_B_HEIGHT - display.fontHeight(1)) / 2);
+            TEXTsprite.setCursor((TXT_B_WIDTH - TEXTsprite.textWidth(text.c_str(), 1)) / 2, (TXT_B_HEIGHT - TEXTsprite.fontHeight(1)) / 2);
         }
         TEXTsprite.println(text);
 
