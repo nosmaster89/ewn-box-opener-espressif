@@ -36,7 +36,6 @@
 #ifdef SCREEN
 #include <display.h>
 #include <kitty.h>
-#include <TFT_eSPI.h>
 
 #endif
 #define NUMPIXELS 1
