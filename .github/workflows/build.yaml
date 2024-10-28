@@ -140,20 +140,20 @@ jobs:
           asset_content_type: application/octet-stream
 
       # compile for c3 supermini
-      - name: Build for c3 supermini
+      - name: Build for super_mini_esp32c3
         run: |
-          pio run -e c3-supermini
-          pio run -e c3-supermini --target buildfs
-      - name: Compile c3 supermini
+          pio run -e super_mini_esp32c3
+          pio run -e super_mini_esp32c3 --target buildfs
+      - name: Compile super_mini_esp32c3
         run: |
-          cd .pio/build/c3-supermini/
-          pio pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o c3-supermini.bin --flash_mode dio --flash_size 4MB 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
-      - name: upload c3 supermini artifact
+          cd .pio/build/super_mini_esp32c3/
+          pio pkg exec -- esptool.py --chip ESP32-C3 merge_bin -o super_mini_esp32c3.bin --flash_mode dio --flash_size 4MB 0x1000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
+      - name: upload super_mini_esp32c3 artifact
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: .pio/build/c3-supermini/c3-supermini.bin
-          asset_name: c3-supermini.bin
+          asset_path: .pio/build/super_mini_esp32c3/super_mini_esp32c3.bin
+          asset_name: super_mini_esp32c3.bin
           asset_content_type: application/octet-stream
