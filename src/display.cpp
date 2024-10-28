@@ -1,5 +1,5 @@
 // #include <display.h>
-#ifdef DISPLAY
+#ifdef SCREEN
 #include <websockets.h>
 #include <param.h>
 #include <TFT_eSPI.h>
