@@ -83,25 +83,6 @@ jobs:
           asset_name: esp32-s3-devkitc-1n8r2.bin
           asset_content_type: application/octet-stream
 
-      # build for the esp32-s3-devkitc-1n8r8
-      - name: Build offical esp32-s3-devkitc-1n8r8
-        run: |
-          pio run -e esp32-s3-devkitc-1n8r8
-          pio run -e esp32-s3-devkitc-1n8r8 --target buildfs
-      - name: Compile esp32-s3-devkitc-1n8r8
-        run: |
-          cd .pio/build/esp32-s3-devkitc-1n8r8/
-          pio pkg exec -- esptool.py --chip ESP32-S3 merge_bin -o esp32-s3-devkitc-1n8r8.bin --flash_mode dio --flash_size 8MB 0x0000 bootloader.bin 0x8000 partitions.bin 0x10000 firmware.bin 0x310000 spiffs.bin
-      - name: upload esp32-s3-devkitc-1n8r8 artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: .pio/build/esp32-s3-devkitc-1n8r8/esp32-s3-devkitc-1.bin
-          asset_name: esp32-s3-devkitc-1n8r8.bin
-          asset_content_type: application/octet-stream
-
       # build for the esp32-s3-devkitc-1n16r8
       - name: Build offical esp32-s3-devkitc-1
         run: |
